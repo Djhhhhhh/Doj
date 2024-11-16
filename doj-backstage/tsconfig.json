@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "esnext",                           // 使用最新的 JavaScript 特性
+    "module": "esnext",                           // 使用模块化的 ESNext 特性
+    "strict": false,                               // 启用严格类型检查
+    "jsx": "preserve",                            // 保留 JSX 语法（适用于 Vue 和 React）
+    "moduleResolution": "node",                   // 使用 Node 风格的模块解析
+    "skipLibCheck": true,                         // 跳过库文件类型检查（可以解决类型定义文件中的问题）
+    "esModuleInterop": true,                      // 启用 esModule 的兼容性
+    "allowSyntheticDefaultImports": true,         // 允许默认导入语法
+    "forceConsistentCasingInFileNames": true,     // 强制文件名一致性（对大小写敏感）
+    "useDefineForClassFields": false,              // 使用 `define` 来初始化类字段
+    "sourceMap": true,                            // 启用 source maps 以支持调试
+    "baseUrl": ".",                               // 设置基础路径
+    "types": [
+      "webpack-env",                              // 如果你用的是 webpack 构建工具，这个配置是有用的
+      "node",                                     // 允许使用 Node.js 的类型定义
+      "lodash"                                    // 如果使用 Lodash，加入此项
+    ],
+    "paths": {
+      "@/*": [
+        "src/*"                                    // 确保路径别名正确映射
+      ]
+    },
+    "lib": [
+      "esnext",                                   // 支持最新的 ESNext 特性
+      "dom",                                      // 支持 DOM 特性
+      "dom.iterable",                             // 支持 DOM 迭代器
+      "scripthost",                               // 支持 Script Host (用于 Node.js 环境)
+      "es2020"                                    // 如果使用了 ES2020 特性（如模板字符串类型），可以包含 es2020
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "tests/**/*.ts",
+    "tests/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

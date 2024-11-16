@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: doj-backend-gateway  # 应用名称，用于服务发现注册
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848  # Nacos 配置，服务发现
+    gateway:
+      routes:
+        - id: doj-backend-user-service  # 路由 ID
+          uri: lb://doj-backend-user-service  # 使用负载均衡的 URI
+          predicates:
+            - Path=/api/user/**  # 请求路径匹配
+        - id: doj-backend-question-service
+          uri: lb://doj-backend-question-service
+          predicates:
+            - Path=/api/question/**
+        - id: doj-backend-judge-service
+          uri: lb://doj-backend-judge-service
+          predicates:
+            - Path=/api/judge/**
+  main:
+    web-application-type: reactive  # 使用反应式 Web 应用
+
+server:
+  port: 8111  # Gateway 服务监听端口
+
+
+knife4j:
+  gateway:
+    enabled: true
+    strategy: discover
+    discover:
+      enabled: true
+      version: swagger2
+      swagger2:
+        url: /v2/api-docs?group=default
