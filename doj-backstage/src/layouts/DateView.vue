@@ -21,6 +21,8 @@ const checkOut = async () => {
 
 const dataList = ref<UserAttendanceVO[]>([]);
 
+const learningMinutes = ref();
+
 const loadData = async () => {
   const res = await UserControllerService.getUserAttendanceStatusUsingGet();
   if (res.code === 0) {
@@ -28,6 +30,10 @@ const loadData = async () => {
     form.checkInTime = res.data?.checkInTime;
     form.checkInStatus = res.data?.checkInStatus;
   }
+  const checkInMoment1 = moment(form.checkInTime);
+  const duration1 = moment().diff(checkInMoment1, "minutes");
+  learningMinutes.value = duration1;
+  console.log(learningMinutes);
   const res2 =
     await UserControllerService.getUserAttendanceStatusListUsingGet();
   if (res2.code === 0) {
@@ -45,22 +51,11 @@ const loadData = async () => {
         user.userName = res3.data.userName || "未知用户";
       }
     });
-    dataList.value.sort((a, b) => b.learningTime - a.learningTime);
     dataList.value.forEach((user, index) => {
       user.rank = index + 1; // 排名从 1 开始
     });
-    console.log(dataList);
   }
 };
-
-const learningMinutes = computed(() => {
-  if (form.checkInTime && form.checkInStatus) {
-    const checkInMoment = moment(form.checkInTime);
-    const duration = moment().diff(checkInMoment, "minutes");
-    return duration;
-  }
-  return 0;
-});
 
 let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -68,7 +63,7 @@ onMounted(() => {
   loadData();
   timer = setInterval(() => {
     loadData();
-  }, 60000);
+  }, 30000);
 });
 
 onUnmounted(() => {

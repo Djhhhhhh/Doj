@@ -18,22 +18,22 @@ import java.nio.charset.StandardCharsets;
 @Component
 public class GlobalAuthFilter implements GlobalFilter, Ordered {
 
-    private AntPathMatcher antPathMatcher = new AntPathMatcher();
+    private final AntPathMatcher antPathMatcher = new AntPathMatcher();
+    private static final String AUTHORIZE_TOKEN = "Authorization";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest serverHttpRequest = exchange.getRequest();
+        ServerHttpResponse serverHttpResponse = exchange.getResponse();
         String path = serverHttpRequest.getURI().getPath();
         // 判断路径中是否包含 inner，只允许内部调用
         if (antPathMatcher.match("/**/inner/**", path)) {
-            ServerHttpResponse response = exchange.getResponse();
-            response.setStatusCode(HttpStatus.FORBIDDEN);
-            DataBufferFactory dataBufferFactory = response.bufferFactory();
+            serverHttpResponse.setStatusCode(HttpStatus.FORBIDDEN);
+            DataBufferFactory dataBufferFactory = serverHttpResponse.bufferFactory();
             DataBuffer dataBuffer = dataBufferFactory.wrap("无权限".getBytes(StandardCharsets.UTF_8));
-            return response.writeWith(Mono.just(dataBuffer));
+            return serverHttpResponse.writeWith(Mono.just(dataBuffer));
         }
-        // todo 统一权限校验，通过 JWT 获取登录用户信息
-        return chain.filter(exchange);
+       return chain.filter(exchange);
     }
 
     /**
