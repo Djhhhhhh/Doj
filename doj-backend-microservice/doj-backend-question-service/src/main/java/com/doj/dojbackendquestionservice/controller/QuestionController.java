@@ -1,6 +1,7 @@
 package com.doj.dojbackendquestionservice.controller;
 
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.doj.dojbackendcommon.annotation.AuthCheck;
 import com.doj.dojbackendcommon.common.BaseResponse;
@@ -10,16 +11,17 @@ import com.doj.dojbackendcommon.common.R;
 import com.doj.dojbackendcommon.constant.UserConstant;
 import com.doj.dojbackendcommon.exception.BusinessException;
 import com.doj.dojbackendcommon.exception.ThrowUtils;
+import com.doj.dojbackendmodel.dto.QuestionTag.QuestionTagUpdateDTO;
 import com.doj.dojbackendmodel.dto.question.*;
 import com.doj.dojbackendmodel.dto.questionsubmit.QuestionSubmitAddDTO;
 import com.doj.dojbackendmodel.dto.questionsubmit.QuestionSubmitQueryDTO;
-import com.doj.dojbackendmodel.entity.Question;
-import com.doj.dojbackendmodel.entity.QuestionSubmit;
-import com.doj.dojbackendmodel.entity.User;
+import com.doj.dojbackendmodel.entity.*;
 import com.doj.dojbackendmodel.vo.QuestionSubmitVO;
 import com.doj.dojbackendmodel.vo.QuestionVO;
 import com.doj.dojbackendquestionservice.service.QuestionService;
 import com.doj.dojbackendquestionservice.service.QuestionSubmitService;
+import com.doj.dojbackendquestionservice.service.QuestionTagService;
+import com.doj.dojbackendquestionservice.service.TagService;
 import com.doj.dojbackendserviceclient.service.UserFeignClient;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +50,12 @@ public class QuestionController {
     @Resource
     private QuestionSubmitService questionSubmitService;
 
+    @Resource
+    private TagService tagService;
+
+    @Resource
+    private QuestionTagService questionTagService;
+
     private final static Gson GSON = new Gson();
 
     // region 增删改查
@@ -66,10 +74,6 @@ public class QuestionController {
         }
         Question question = new Question();
         BeanUtils.copyProperties(questionAddRequest, question);
-        List<String> tags = questionAddRequest.getTags();
-        if (tags != null) {
-            question.setTags(GSON.toJson(tags));
-        }
         List<JudgeCase> judgeCase = questionAddRequest.getJudgeCase();
         if (judgeCase != null) {
             question.setJudgeCase(GSON.toJson(judgeCase));
@@ -126,10 +130,6 @@ public class QuestionController {
         }
         Question question = new Question();
         BeanUtils.copyProperties(questionUpdateRequest, question);
-        List<String> tags = questionUpdateRequest.getTags();
-        if (tags != null) {
-            question.setTags(GSON.toJson(tags));
-        }
         List<JudgeCase> judgeCase = questionUpdateRequest.getJudgeCase();
         if (judgeCase != null) {
             question.setJudgeCase(GSON.toJson(judgeCase));
@@ -259,8 +259,7 @@ public class QuestionController {
      */
     @PostMapping("/list/page")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Page<Question>> listQuestionByPage(@RequestBody QuestionQueryDTO questionQueryRequest,
-                                                           HttpServletRequest request) {
+    public BaseResponse<Page<Question>> listQuestionByPage(@RequestBody QuestionQueryDTO questionQueryRequest) {
         long current = questionQueryRequest.getCurrent();
         long size = questionQueryRequest.getPageSize();
         Page<Question> questionPage = questionService.page(new Page<>(current, size),
@@ -284,10 +283,6 @@ public class QuestionController {
         }
         Question question = new Question();
         BeanUtils.copyProperties(questionEditRequest, question);
-        List<String> tags = questionEditRequest.getTags();
-        if (tags != null) {
-            question.setTags(GSON.toJson(tags));
-        }
         List<JudgeCase> judgeCase = questionEditRequest.getJudgeCase();
         if (judgeCase != null) {
             question.setJudgeCase(GSON.toJson(judgeCase));
@@ -347,5 +342,123 @@ public class QuestionController {
         final User loginUser = userFeignClient.getLoginUser(request);
         // 返回脱敏信息
         return R.success(questionSubmitService.getQuestionSubmitVOPage(questionSubmitPage, loginUser));
+    }
+
+    @PostMapping("/tag/list")
+    public BaseResponse<List<Tag>> listTags(){
+        List<Tag> list = tagService.list();
+        return R.success(list);
+    }
+
+    @PostMapping("/tag/add")
+    public BaseResponse<Tag> addTag(String name){
+        Tag tag = tagService.add(name);
+        if(tag != null){
+            return R.success(tag);
+        }else{
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+    }
+
+    @PostMapping("/tag/delete")
+    public BaseResponse<Boolean> deleteTag(long id){
+        Boolean de=tagService.removeById(id);
+        if(de){
+            return R.success(de);
+        }else{
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+    }
+
+    @GetMapping("/tag/getById")
+    public BaseResponse<Tag> getTagById(long id){
+        Tag tag=tagService.getById(id);
+        if(tag!=null){
+            return R.success(tag);
+        }else{
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+    }
+
+    @GetMapping("/tag/getByName")
+    public BaseResponse<Tag> getTagByName(String name){
+        Tag tag=tagService.getByName(name);
+        if(tag!=null){
+            return R.success(tag);
+        }else{
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+    }
+
+    @PostMapping("/tag/update")
+    public BaseResponse<Tag> updateTag(@RequestBody Tag tag){
+        boolean v=tagService.update(tag,new QueryWrapper<Tag>().eq("id",tag.getId()));
+        if(v) {
+            return R.success(tag);
+        }else{
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+    }
+
+    @PostMapping("/question/tag/add")
+    public BaseResponse<QuestionTag> addQuestionTag(@RequestBody QuestionTag questionTag) {
+        Tag tag=tagService.getById(questionTag.getTagId());
+        Question question = questionService.getById(questionTag.getQuestionId());
+        if(question!=null&&tag!=null){
+            boolean qT=questionTagService.save(questionTag);
+            if(qT){
+                return R.success(questionTag);
+            }
+        }
+        throw new BusinessException(ErrorCode.PARAMS_ERROR);
+    }
+
+    @PostMapping("/question/tag/delete")
+    public BaseResponse<Boolean> deleteQuestionTag(@RequestBody QuestionTag questionTag){
+        boolean qT=questionTagService.remove(new QueryWrapper<QuestionTag>()
+                .eq("questionId",questionTag.getQuestionId())
+                .eq("tagId",questionTag.getTagId()));
+        if(qT){
+            return R.success(qT);
+        }else{
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+    }
+
+    @PostMapping("/question/tag/update")
+    public BaseResponse<QuestionTag> updateQuestionTag(@RequestBody QuestionTagUpdateDTO questionTagUpdateDTO){
+        QuestionTag questionTag=questionTagService.getOne(new QueryWrapper<QuestionTag>()
+                .eq("questionId",questionTagUpdateDTO.getQuestionId())
+                .eq("tagId",questionTagUpdateDTO.getOldTagId()));
+        if(questionTag!=null){
+            questionTag.setTagId(questionTagUpdateDTO.getNewTagId());
+            boolean qT=questionTagService.update(questionTag,new QueryWrapper<QuestionTag>()
+                    .eq("questionId",questionTagUpdateDTO.getQuestionId())
+                    .eq("tagId",questionTagUpdateDTO.getOldTagId()));
+            if(qT){
+                return R.success(questionTag);
+            }
+        }
+        throw new BusinessException(ErrorCode.PARAMS_ERROR);
+    }
+
+    @PostMapping("/question/tag/getByQuestionId")
+    public BaseResponse<List<QuestionTag>> getQuestionTagByQuetsionId(long id){
+        if(questionService.getById(id)!=null){
+            List<QuestionTag> list=questionTagService.list(new QueryWrapper<QuestionTag>().eq("questionId",id));
+            return R.success(list);
+        }else{
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+    }
+
+    @PostMapping("/question/tag/getByTagId")
+    public BaseResponse<List<QuestionTag>> getQuestionTagByTagId(long id){
+        if(tagService.getById(id)!=null){
+            List<QuestionTag> list=questionTagService.list(new QueryWrapper<QuestionTag>().eq("tagId",id));
+            return R.success(list);
+        }else{
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
     }
 }

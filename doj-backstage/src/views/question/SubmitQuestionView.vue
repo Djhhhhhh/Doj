@@ -62,13 +62,15 @@ const loadData = async () => {
     question.value.content = question.value.content
       .replace(inputPattern, "")
       .replace(outputPattern, "");
-    question.value.inputDescription = inputMatch ? inputMatch[1].trim() : "";
-    question.value.outputDescription = outputMatch ? outputMatch[1].trim() : "";
+    question.value.inputDescription = inputMatch ? inputMatch[1].trim() : "无";
+    question.value.outputDescription = outputMatch
+      ? outputMatch[1].trim()
+      : "无";
     question.value.judgeCase = await Promise.all(
       question.value.judgeCase.map(async (judgeCase) => {
         // 处理 input 和 output 解析
         judgeCase.input = formatText(judgeCase.input);
-        judgeCase.Output = formatText(judgeCase.Output);
+        judgeCase.output = formatText(judgeCase.output);
         return judgeCase;
       })
     );
@@ -127,6 +129,18 @@ const formatMarkdown = (markdown: string) => {
   // 使用 marked 将 Markdown 转换为 HTML
   return marked(markdown || "");
 };
+
+const copyToClipboard = (text: string) => {
+  const formattedText = text.replace(/<br\/>/g, "\n");
+  navigator.clipboard.writeText(formattedText).then(
+    () => {
+      message.success("复制成功");
+    },
+    () => {
+      message.error("复制失败");
+    }
+  );
+};
 </script>
 <template>
   <el-container style="height: 100%">
@@ -158,12 +172,56 @@ const formatMarkdown = (markdown: string) => {
             :key="index"
           >
             <h4 style="margin: 0; padding: 0">test:{{ index + 1 }}</h4>
-            <div style="display: flex; margin-bottom: 10px">
-              <el-card style="margin-right: 10px; width: 45%">
+            <div style="display: flex; margin-bottom: 10px; position: relative">
+              <el-card
+                style="margin-right: 10px; width: 45%; position: relative"
+              >
                 <div v-html="item.input" class="formatted-text" />
+                <el-button
+                  type="primary"
+                  @click="copyToClipboard(item.input)"
+                  style="
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    opacity: 0.7;
+                    background-color: transparent;
+                    color: gray;
+                    border: none;
+                  "
+                  @mouseover="
+                    (e) => (e.target.style.backgroundColor = '#f0f0f0')
+                  "
+                  @mouseleave="
+                    (e) => (e.target.style.backgroundColor = 'transparent')
+                  "
+                >
+                  复制
+                </el-button>
               </el-card>
-              <el-card style="width: 50%">
-                <div v-html="item.Output" class="formatted-text" />
+              <el-card style="width: 50%; position: relative">
+                <div v-html="item.output" class="formatted-text" />
+                <el-button
+                  type="primary"
+                  @click="copyToClipboard(item.output)"
+                  style="
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    opacity: 0.7;
+                    background-color: transparent;
+                    color: gray;
+                    border: none;
+                  "
+                  @mouseover="
+                    (e) => (e.target.style.backgroundColor = '#f0f0f0')
+                  "
+                  @mouseleave="
+                    (e) => (e.target.style.backgroundColor = 'transparent')
+                  "
+                >
+                  复制
+                </el-button>
               </el-card>
             </div>
           </div>

@@ -5,7 +5,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * 查询请求
@@ -30,10 +29,6 @@ public class QuestionQueryDTO extends PageRequest implements Serializable {
      */
     private String content;
 
-    /**
-     * 标签列表
-     */
-    private List<String> tags;
 
     /**
      * 题解

@@ -12,7 +12,6 @@ export type Question = {
     judgeCase?: string;
     judgeConfig?: string;
     submitNum?: number;
-    tags?: string;
     title?: string;
     updateTime?: string;
     userId?: number;

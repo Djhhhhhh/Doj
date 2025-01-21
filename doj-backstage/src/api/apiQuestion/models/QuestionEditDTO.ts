@@ -10,7 +10,6 @@ export type QuestionEditDTO = {
     id?: number;
     judgeCase?: Array<JudgeCase>;
     judgeConfig?: JudgeConfig;
-    tags?: Array<string>;
     title?: string;
 };
 

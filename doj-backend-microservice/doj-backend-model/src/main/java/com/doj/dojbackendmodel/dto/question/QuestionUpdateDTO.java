@@ -26,12 +26,6 @@ public class QuestionUpdateDTO implements Serializable {
      * 内容
      */
     private String content;
-
-    /**
-     * 标签列表（json 数组）
-     */
-    private List<String> tags;
-
     /**
      * 题解
      */

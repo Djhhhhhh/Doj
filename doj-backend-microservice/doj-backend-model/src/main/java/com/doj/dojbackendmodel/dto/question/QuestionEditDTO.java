@@ -28,11 +28,6 @@ public class QuestionEditDTO implements Serializable {
     private String content;
 
     /**
-     * 标签列表（json 数组）
-     */
-    private List<String> tags;
-
-    /**
      * 题解
      */
     private String answer;

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, watch, ref } from "vue";
+import { onMounted, ref } from "vue";
 import MdEditor from "@/components/MdEditor.vue";
 import { QuestionControllerService } from "@/api/apiQuestion";
-import message from "@arco-design/web-vue/es/message";
+import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
@@ -27,75 +27,73 @@ let form = ref({
     },
   ],
 });
-/**
- * 根据题目 id 获取老的数据
- */
-const loadData = async () => {
-  const id = route.query.id;
-  if (!id) {
-    return;
-  }
-  const res = await QuestionControllerService.getQuestionByIdUsingGet(
-    id as any
+
+const allTags = ref([]);
+
+// 获取标签名称列表
+const loadTagNames = async () => {
+  const tagIds = form.value.tags; // 确保form.value.tags是标签ID列表
+  const tagNames = await Promise.all(
+    tagIds.map(async (tagId: string) => {
+      const tagNameRes = await QuestionControllerService.getTagByIdUsingGet(
+        tagId
+      ); // 传递字符串类型的 tagId
+      return tagNameRes.code === 0 ? tagNameRes.data.name : "未知标签";
+    })
   );
-  if (res.code === 0) {
-    form.value = res.data as any;
-    // json 转 js 对象
-    if (!form.value.judgeCase) {
-      form.value.judgeCase = [
-        {
-          input: "",
-          output: "",
-        },
-      ];
-    } else {
-      form.value.judgeCase = JSON.parse(form.value.judgeCase as any);
-      console.log(form.value.judgeCase);
-    }
-    if (!form.value.judgeConfig) {
-      form.value.judgeConfig = {
-        memoryLimit: 1000,
-        stackLimit: 1000,
-        timeLimit: 1000,
-      };
-    } else {
-      form.value.judgeConfig = JSON.parse(form.value.judgeConfig as any);
-    }
-    if (!form.value.tags) {
-      form.value.tags = [];
-    } else {
-      form.value.tags = JSON.parse(form.value.tags as any);
-    }
-  } else {
-    message.error("加载失败，" + res.message);
+  form.value.tags = tagNames; // 更新为标签名称
+};
+
+const loadAllTags = async () => {
+  const tagRes = await QuestionControllerService.listTagsUsingPost();
+  if (tagRes.code === 0) {
+    allTags.value = tagRes.data;
   }
 };
 
 onMounted(() => {
-  loadData();
+  loadAllTags();
 });
 
 const doSubmit = async () => {
-  console.log(form.value);
-  // 区分更新还是创建
-  if (updatePage) {
-    const res = await QuestionControllerService.updateQuestionUsingPost(
-      form.value
-    );
-    if (res.code === 0) {
-      message.success("更新成功");
+  try {
+    const questionRequest = {
+      ...form.value,
+      tags: [], // 清空 tags，避免重复保存
+    };
+
+    let res;
+    if (updatePage) {
+      res = await QuestionControllerService.updateQuestionUsingPost(
+        questionRequest
+      );
     } else {
-      message.error("更新失败，" + res.message);
+      res = await QuestionControllerService.addQuestionUsingPost(
+        questionRequest
+      );
     }
-  } else {
-    const res = await QuestionControllerService.addQuestionUsingPost(
-      form.value
-    );
+
     if (res.code === 0) {
-      message.success("创建成功");
+      const questionId = res.data;
+      await saveTags(questionId);
+      ElMessage.success(updatePage ? "更新成功" : "创建成功");
+      router.push("/question/list");
     } else {
-      message.error("创建失败，" + res.message);
+      ElMessage.error((updatePage ? "更新" : "创建") + "失败，" + res.message);
     }
+  } catch (error) {
+    ElMessage.error("提交失败，" + error.message);
+  }
+};
+
+const saveTags = async (questionId) => {
+  const tags = form.value.tags;
+  for (const tagId of tags) {
+    const questionTag = {
+      questionId,
+      tagId,
+    };
+    await QuestionControllerService.addQuestionTagUsingPost(questionTag);
   }
 };
 
@@ -129,101 +127,151 @@ const onBack = () => {
 </script>
 
 <template>
-  <div id="addQuestionView">
+  <div id="addQuestionView" class="container">
     <el-page-header @back="onBack"></el-page-header>
     <h2>添加题目</h2>
-    <a-form :model="form" label-align="left">
-      <a-form-item field="title" label="标题">
-        <a-input v-model="form.title" placeholder="请输入标题" />
-      </a-form-item>
-      <a-form-item field="tags" label="标签">
-        <a-input-tag v-model="form.tags" placeholder="请选择标签" allow-clear />
-      </a-form-item>
-      <a-form-item field="content" label="题目内容">
-        <MdEditor :value="form.content" :handle-change="onContentChange" />
-      </a-form-item>
-      <a-form-item field="answer" label="答案">
-        <MdEditor :value="form.answer" :handle-change="onAnswerChange" />
-      </a-form-item>
-      <a-form-item label="判题配置" :content-flex="false" :merge-props="false">
-        <a-space direction="vertical" style="min-width: 480px">
-          <a-form-item field="judgeConfig.timeLimit" label="时间限制">
-            <a-input-number
+    <el-card>
+      <el-form :model="form" ref="formRef" label-position="left" class="form">
+        <el-form-item prop="title" label="标题">
+          <el-input v-model="form.title" placeholder="请输入标题" />
+        </el-form-item>
+        <el-form-item prop="tags" label="标签">
+          <el-select v-model="form.tags" placeholder="请选择标签" multiple>
+            <el-option
+              v-for="tag in allTags"
+              :key="tag.id"
+              :label="tag.name"
+              :value="tag.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item prop="content" label="题目内容" class="full-width">
+          <MdEditor
+            :value="form.content"
+            :handle-change="onContentChange"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item prop="answer" label="答案模板" class="full-width">
+          <MdEditor
+            :value="form.answer"
+            :handle-change="onAnswerChange"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="判题配置">
+          <el-form-item
+            prop="judgeConfig.timeLimit"
+            label="时间限制"
+            class="full-width"
+          >
+            <el-input-number
               v-model="form.judgeConfig.timeLimit"
               placeholder="请输入时间限制"
-              mode="button"
               min="0"
-              size="large"
             />
-          </a-form-item>
-          <a-form-item field="judgeConfig.memoryLimit" label="内存限制">
-            <a-input-number
+          </el-form-item>
+          <el-form-item
+            prop="judgeConfig.memoryLimit"
+            label="内存限制"
+            class="full-width"
+          >
+            <el-input-number
               v-model="form.judgeConfig.memoryLimit"
               placeholder="请输入内存限制"
-              mode="button"
               min="0"
-              size="large"
             />
-          </a-form-item>
-          <a-form-item field="judgeConfig.stackLimit" label="堆栈限制">
-            <a-input-number
+          </el-form-item>
+          <el-form-item
+            prop="judgeConfig.stackLimit"
+            label="堆栈限制"
+            class="full-width"
+          >
+            <el-input-number
               v-model="form.judgeConfig.stackLimit"
               placeholder="请输入堆栈限制"
-              mode="button"
               min="0"
-              size="large"
             />
-          </a-form-item>
-        </a-space>
-      </a-form-item>
-      <a-form-item
-        label="测试用例配置"
-        :content-flex="false"
-        :merge-props="false"
-      >
-        <a-form-item
-          v-for="(judgeCaseItem, index) of form.judgeCase"
-          :key="index"
-          no-style
-        >
-          <a-space direction="vertical" style="min-width: 640px">
-            <a-form-item
-              :field="`form.judgeCase[${index}].input`"
-              :label="`输入用例-${index}`"
-              :key="index"
+          </el-form-item>
+        </el-form-item>
+        <el-form-item label="测试用例配置">
+          <el-row v-for="(judgeCaseItem, index) of form.judgeCase" :key="index">
+            <el-col :span="24">
+              <el-form-item
+                :prop="`judgeCase[${index}].input`"
+                :label="`输入用例-${index}`"
+                class="full-width"
+              >
+                <el-input
+                  type="textarea"
+                  v-model="judgeCaseItem.input"
+                  placeholder="请输入测试输入用例"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="24">
+              <el-form-item
+                :prop="`judgeCase[${index}].output`"
+                :label="`输出用例-${index}`"
+                class="full-width"
+              >
+                <el-input
+                  type="textarea"
+                  v-model="judgeCaseItem.output"
+                  placeholder="请输入测试输出用例"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="24" class="delete-button">
+              <el-button
+                type="danger"
+                @click="handleDelete(index)"
+                class="delete-btn"
+                >删除</el-button
+              >
+            </el-col>
+          </el-row>
+          <div class="add-button">
+            <el-button @click="handleAdd" type="success"
+              >新增测试用例</el-button
             >
-              <a-textarea
-                v-model="judgeCaseItem.input"
-                placeholder="请输入测试输入用例"
-              />
-            </a-form-item>
-            <a-form-item
-              :field="`form.judgeCase[${index}].output`"
-              :label="`输出用例-${index}`"
-              :key="index"
-            >
-              <a-textarea
-                v-model="judgeCaseItem.output"
-                placeholder="请输入测试输出用例"
-              />
-            </a-form-item>
-            <a-button status="danger" @click="handleDelete(index)">
-              删除
-            </a-button>
-          </a-space>
-        </a-form-item>
-        <div style="margin-top: 32px">
-          <a-button @click="handleAdd" type="outline" status="success"
-            >新增测试用例
-          </a-button>
+          </div>
+        </el-form-item>
+        <div class="submit-button">
+          <el-form-item>
+            <el-button type="primary" @click="doSubmit">提交</el-button>
+          </el-form-item>
         </div>
-      </a-form-item>
-      <div style="margin-top: 16px" />
-      <a-form-item>
-        <a-button type="primary" style="min-width: 200px" @click="doSubmit"
-          >提交
-        </a-button>
-      </a-form-item>
-    </a-form>
+      </el-form>
+    </el-card>
   </div>
 </template>
+
+<style scoped>
+.form {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.delete-button {
+  text-align: right;
+}
+
+.delete-btn {
+  margin-top: 10px;
+}
+
+.add-button {
+  margin-top: 32px;
+  text-align: center;
+}
+
+.submit-button {
+  margin-top: 16px;
+  text-align: center;
+}
+</style>

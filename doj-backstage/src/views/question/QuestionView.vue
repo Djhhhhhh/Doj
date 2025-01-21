@@ -23,14 +23,6 @@ const columns = [
     dataIndex: "content",
   },
   {
-    title: "标签",
-    dataIndex: "tags",
-  },
-  {
-    title: "答案",
-    dataIndex: "answer",
-  },
-  {
     title: "提交数",
     dataIndex: "submitNum",
   },
@@ -59,6 +51,7 @@ const columns = [
     slotName: "optional",
   },
 ];
+
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   return new Intl.DateTimeFormat("zh-CN", {
@@ -70,25 +63,55 @@ const formatDate = (dateString: string) => {
     second: "2-digit",
   }).format(date);
 };
+
 const loadData = async () => {
   const res = await QuestionControllerService.listQuestionByPageUsingPost(
     searchParams.value
   );
   if (res.code === 0) {
+    // 获取题目数据
     dataList.value = res.data.records;
-    dataList.value = res.data.records.map((item) => ({
-      ...item,
-      tags: JSON.parse(item.tags),
-      updateTime: formatDate(item.updateTime),
-    }));
+
+    // 获取每个题目的标签和标签名称
+    for (const item of dataList.value) {
+      item.updateTime = formatDate(item.updateTime);
+
+      // 获取标签 ID 列表
+      const tagRes =
+        await QuestionControllerService.getQuestionTagByQuetsionIdUsingPost(
+          item.id
+        ); // 获取与题目 ID 关联的标签 ID 列表
+
+      console.log(tagRes);
+      if (tagRes.code === 0) {
+        // 假设返回的数据中包含 tagId，将其保持为字符串类型
+        const tagIds = tagRes.data.map((tag: { tagId: string }) => tag.tagId); // 保留 tagId 为字符串类型
+
+        // 根据标签 ID 获取标签名称
+        const tagNames = await Promise.all(
+          tagIds.map(async (tagId: string) => {
+            // tagId 为字符串类型
+            const tagNameRes =
+              await QuestionControllerService.getTagByIdUsingGet(tagId); // 传递字符串类型的 tagId
+            return tagNameRes.code === 0 ? tagNameRes.data.name : "未知标签";
+          })
+        );
+
+        item.tagsName = tagNames; // 保存标签名称
+      } else {
+        item.tagsName = ["未知标签"]; // 如果没有标签，则返回默认值
+      }
+    }
   } else {
     alert("加载失败，" + res.message);
   }
 };
+
 onMounted(() => {
   loadData();
   console.log(dataList);
 });
+
 const routeGo = (url: string, i: number) => {
   if (i === -1) {
     router.push(url);
@@ -136,17 +159,14 @@ const routeGo = (url: string, i: number) => {
                 <div style="margin-right: 10px; margin-left: 10px">
                   {{ item.title }}
                 </div>
-                <el-tag
-                  v-for="(tag, id) in item.tags"
-                  :key="id"
-                  type="primary"
-                  style="margin-right: 3px"
-                >
-                  {{ tag }}
-                </el-tag>
               </template>
-              <div>
-                {{ item.content }}
+              <div style="white-space: pre-wrap; word-break: break-word">
+                {{
+                  item.content.split("\n").length > 2
+                    ? item.content.split("\n").slice(0, 2).join(" ") +
+                      "(点击查看全部)"
+                    : item.content
+                }}
               </div>
               <div>
                 <el-text
@@ -156,6 +176,16 @@ const routeGo = (url: string, i: number) => {
                 >
                   {{ item.updateTime }}
                 </el-text>
+              </div>
+              <div>
+                <!-- 渲染标签 -->
+                <el-tag
+                  v-for="(tag, index) in item.tagsName"
+                  :key="index"
+                  style="margin: 5px"
+                >
+                  {{ tag }}
+                </el-tag>
               </div>
             </el-collapse-item>
           </el-collapse>

@@ -9,7 +9,6 @@ export type QuestionAddDTO = {
     content?: string;
     judgeCase?: Array<JudgeCase>;
     judgeConfig?: JudgeConfig;
-    tags?: Array<string>;
     title?: string;
 };
 

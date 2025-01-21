@@ -23,15 +23,15 @@ public class GlobalAuthFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        ServerHttpRequest serverHttpRequest = exchange.getRequest();
-        ServerHttpResponse serverHttpResponse = exchange.getResponse();
-        String path = serverHttpRequest.getURI().getPath();
+        ServerHttpRequest request = exchange.getRequest();
+        ServerHttpResponse response = exchange.getResponse();
+        String path = request.getURI().getPath();
         // 判断路径中是否包含 inner，只允许内部调用
         if (antPathMatcher.match("/**/inner/**", path)) {
-            serverHttpResponse.setStatusCode(HttpStatus.FORBIDDEN);
-            DataBufferFactory dataBufferFactory = serverHttpResponse.bufferFactory();
+            response.setStatusCode(HttpStatus.FORBIDDEN);
+            DataBufferFactory dataBufferFactory = response.bufferFactory();
             DataBuffer dataBuffer = dataBufferFactory.wrap("无权限".getBytes(StandardCharsets.UTF_8));
-            return serverHttpResponse.writeWith(Mono.just(dataBuffer));
+            return response.writeWith(Mono.just(dataBuffer));
         }
        return chain.filter(exchange);
     }

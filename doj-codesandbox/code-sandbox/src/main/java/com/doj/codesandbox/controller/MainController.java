@@ -1,9 +1,12 @@
 package com.doj.codesandbox.controller;
 
+import com.doj.codesandbox.CppSandbox.CppDockerCodeSandbox;
 import com.doj.codesandbox.CppSandbox.CppNativeCodeSandbox;
+import com.doj.codesandbox.JavaSandbox.JavaDockerCodeSandbox;
 import com.doj.codesandbox.JavaSandbox.JavaNativeCodeSandbox;
 import com.doj.codesandbox.model.ExecuteCodeRequest;
 import com.doj.codesandbox.model.ExecuteCodeResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,8 +23,17 @@ public class MainController {
     private JavaNativeCodeSandbox javaNativeCodeSandbox;
 
     @Resource
+    private JavaDockerCodeSandbox javaDockerCodeSandbox;
+
+    @Resource
     private CppNativeCodeSandbox cppNativeCodeSandbox;
 
+    @Resource
+    private CppDockerCodeSandbox cppDockerCodeSandbox;
+
+
+    @Value("${environment.type:docker}")
+    private String enviromentType;
     /**
      * 执行代码
      * @param executeCodeRequest
@@ -37,10 +49,19 @@ public class MainController {
         if (executeCodeRequest==null){
             throw new RuntimeException("请求参数异常");
         }
-        if (executeCodeRequest.getLanguage().equals("cpp")) {
-            return cppNativeCodeSandbox.executeCode(executeCodeRequest);
+        if(enviromentType.equals("docker")){
+            if (executeCodeRequest.getLanguage().equals("cpp")) {
+                return cppDockerCodeSandbox.executeCode(executeCodeRequest);
+            }else{
+                return javaDockerCodeSandbox.executeCode(executeCodeRequest);
+            }
+        }else{
+            if (executeCodeRequest.getLanguage().equals("cpp")) {
+                return cppNativeCodeSandbox.executeCode(executeCodeRequest);
+            }else{
+                return javaNativeCodeSandbox.executeCode(executeCodeRequest);
+            }
         }
-        return javaNativeCodeSandbox.executeCode(executeCodeRequest);
     }
 }
 

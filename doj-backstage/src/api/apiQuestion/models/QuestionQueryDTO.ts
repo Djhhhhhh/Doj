@@ -10,7 +10,6 @@ export type QuestionQueryDTO = {
     pageSize?: number;
     sortField?: string;
     sortOrder?: string;
-    tags?: Array<string>;
     title?: string;
     userId?: number;
 };
